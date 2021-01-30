@@ -1,0 +1,182 @@
+---
+title: "Sampling Methods."
+author: "Manuel Diaz"
+date: "29/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+library(dplyr)
+library(manipulate)
+library(tigerstats)
+```
+
+
+## Métodos de Muestreo.
+
+Un ejemplo simple.
+
+```{r}
+iris.df <- data.frame(iris)
+sample.index <- sample(1:nrow(iris.df), nrow(iris) * 0.75, replace = FALSE)
+head(iris[sample.index, ])
+```
+
+
+```{r}
+credit <- read.csv(url("http://statmath.wu.ac.at/~vana/Intro_Data_Analytics_R/credit.csv"))
+str(credit)
+```
+
+```{r}
+summary(credit)
+```
+### Simple Random Sampling (SRS)
+In simple random sampling, for a given sample size  n,every set of  n  members of the population has the same chance to be the sample that is actually selected. 
+
+
+Random sample of 5 individuals from the dataset, for "balance" variable, with replacement=TRUE
+```{r}
+set.seed(123)
+sample1 <- sample(credit[,3], 5, replace=TRUE)
+```
+
+### STRATIFIED CLUSTERING
+stratified clustering using dplyr-library.
+we obtain a stratified sample with 15 individuals from each category of student variable
+```{r}
+credit_sample1 <- credit %>% group_by(student) %>% sample_n(15)
+credit_sample1
+```
+
+
+>>Los investigadores investigaron la idoneidad de una escala de hambruna recientemente desarrollada como una definición internacional de hambruna para orientar la respuesta humanitaria, la financiación y la rendición de cuentas.1 La escala había sido propuesta por Howe y Devereux, y definía la hambruna sobre la base de la intensidad y la magnitud. 2 La escala se aplicó retrospectivamente a la crisis humanitaria durante 2005 en Níger, África occidental, para determinar si había ocurrido una hambruna. Se utilizó un diseño de estudio transversal. Los hogares se reclutaron mediante un método de muestreo por conglomerados estratificado en dos etapas. Níger se estratificó en sus ocho regiones. Dentro de cada región, se seleccionaron al azar 26 aldeas, con una probabilidad de selección proporcional al tamaño de la aldea. Dentro de cada aldea, se seleccionaron sistemáticamente al azar 20 hogares. Se realizó un censo de todo el hogar mediante la administración de un cuestionario al jefe de cada hogar seleccionado. Los investigadores concluyeron que, sobre la base de la escala de hambruna desarrollada por Howe y Devereux, la mayoría de las regiones de Níger en 2005 experimentaron condiciones de crisis alimentaria y algunas áreas se acercaron a la hambruna. Además, se sugirió que la escala ofrecía criterios más objetivos que los enfoques anteriores, al tiempo que proporcionaba sistemas de alerta temprana que podrían ayudar a orientar el nivel de respuesta en situaciones futuras. 
+
+
+### Systematic Sampling
+In a systematic sample, the members of the population are put in a row. Then 1 out of every  k  members are selected. The starting point is randomly chosen from the first  k  elements and,then elements are sampled at the same location in each of the subsequent segments of size  k .
+
+Let's have a sample moving by=50. first we have to chose from where will start the sampling
+
+```{r}
+set.seed(1234)
+(start.position=sample(1:50,1))# let's "choose" randomly from where to start 
+
+```
+you will have different values of start position if you sample again
+```{r}
+i=seq(start.position,length(credit$default),50)# build a sequence from start postion and move by 50
+head(credit_sample2<-credit[i,])# choose only the rows in i- index
+```
+
+### Stratified Sampling
+In a stratified sample, the population must first be separated into homogeneous groups, or strata. Each element only belongs to one stratum and the stratum consist of elements that are alike in some way.A simple random sample is then drawn from each stratum, which is combined to make the stratified sample.
+ 
+Let's obtain two stratified samples based on variable "student"
+Create subset from each category student =(yes,no).
+
+```{r}
+set.seed(143)
+student.po=subset(credit,student=="Yes") 
+```
+
+Let's obtain a sample with length k=10 from the subset obtained above
+```{r}
+
+sampl.student.po=popsamp(10,student.po)
+head(sampl.student.po)
+```
+
+We do the same with subset student=="No"
+```{r}
+
+set.seed(134)
+student.no=subset(credit,student=="No") 
+```
+
+```{r}
+sampl.student.no=popsamp(10,student.no)
+
+```
+
+Then we merge these two sample and create a stratified sample 
+
+```{r}
+
+head(credit_sample3<-rbind(sampl.student.po,sampl.student.no))# merge by row 
+```
+
+we may use boxplot for a clear view of the variation and spread of the observations
+
+
+```{r}
+par(mfrow=c(1,4))
+boxplot(credit_sample1$income,main="STRATIFIED CLUSTERING")
+boxplot(credit_sample2$income,main="Systematic Sampling")
+boxplot(credit_sample3$income,main="Stratified Sampling")
+boxplot(credit$income,main="Population",col="red")
+```
+
+## Train Test Split.
+```{r}
+library(caret)
+```
+
+### Boston Housing DataSet
+
+This dataset contains information collected by the U.S Census Service concerning housing in the area of Boston Mass. It was obtained from the StatLib [archive](http://lib.stat.cmu.edu/datasets/boston), and has been used extensively throughout the literature to benchmark algorithms. However, these comparisons were primarily done outside of Delve and are thus somewhat suspect. The dataset is small in size with only 506 cases.
+
+The data was originally published by Harrison, D. and Rubinfeld, D.L. `Hedonic prices and the demand for clean air', J. Environ. Economics & Management, vol.5, 81-102, 1978.
+
+There are 14 attributes in each case of the dataset. They are:
+
+*CRIM - per capita crime rate by town
+*ZN - proportion of residential land zoned for lots over 25,000 sq.ft.
+*INDUS - proportion of non-retail business acres per town.
+*CHAS - Charles River dummy variable (1 if tract bounds river; 0 otherwise)
+*NOX - nitric oxides concentration (parts per 10 million)
+*RM - average number of rooms per dwelling
+*AGE - proportion of owner-occupied units built prior to 1940
+*DIS - weighted distances to five Boston employment centres
+*RAD - index of accessibility to radial highways
+*TAX - full-value property-tax rate per $10,000
+*PTRATIO - pupil-teacher ratio by town
+*B - 1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town
+*LSTAT - % lower status of the population
+*MEDV - Median value of owner-occupied homes in $1000's
+
+```{r}
+boston <- read.csv(url("https://raw.githubusercontent.com/selva86/datasets/master/BostonHousing.csv"))
+str(boston)
+```
+
+creating indices
+```{r}
+
+Index <- createDataPartition(boston$lstat,p=0.75,list=FALSE)
+```
+
+Spliting data in Train and Test.
+
+```{r}
+boston_train <- boston[Index,] #75%
+boston_test <- boston[-Index,] #25%
+```
+
+Adjusting a Linear Simple Model to the data
+
+```{r}
+lm_fit <- lm(medv ~ ., data = boston_train)
+summary(lm_fit)
+```
+```{r}
+p <- predict(lm_fit, boston_test %>% select(-"medv"))
+error <- (p - boston_test$medv)
+RMSE_Model <- sqrt(mean(error^2))
+RMSE_Model
+```
+
